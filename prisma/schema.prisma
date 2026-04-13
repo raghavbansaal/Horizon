@@ -44,7 +44,7 @@ model Party {
   salesBills       SalesBill[]
   purchaseBills    PurchaseBill[]
   suppliedProducts Product[]      @relation("SupplierToProduct")
-
+  damages         Damage[]
 }
 
 // ========== PRODUCT ==========
