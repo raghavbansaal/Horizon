@@ -43,7 +43,7 @@ model Party {
   priceLists       PriceList[]
   salesBills       SalesBill[]
   purchaseBills    PurchaseBill[]
-  suppliedProducts Product[]      @relation("SupplierToProduct")0 ])
+  suppliedProducts Product[]      @relation("SupplierToProduct")
 
 }
 
