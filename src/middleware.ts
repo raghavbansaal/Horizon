@@ -5,6 +5,9 @@ const protectedRoutes = ["/", "/parties", "/products", "/billing", "/cashflow", 
 const publicRoutes = ["/login", "/signup", "/forgot-password"];
 
 export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
   let supabaseResponse = NextResponse.next({
     request,
   })
