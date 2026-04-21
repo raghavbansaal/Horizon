@@ -1,6 +1,6 @@
 import { getBills, getBillingFormData } from "./actions";
 import { BillingManager } from "./billing-manager";
-import { createClient } from "../../../../lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";

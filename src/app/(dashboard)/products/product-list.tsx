@@ -103,21 +103,7 @@ export function ProductList({ initialProducts, suppliers }: ProductListProps) {
               className="pl-9"
             />
           </div>
-          <Select
-            value={filterType}
-            onValueChange={(val: any) => setFilterType(val)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Types</SelectItem>
-              <SelectItem value="COW">Cow Ghee</SelectItem>
-              <SelectItem value="BUFFALO">Buffalo Ghee</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
-
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger render={<Button className="w-full sm:w-auto" />}>
             <Plus className="w-4 h-4 mr-2" />

@@ -2,7 +2,7 @@
 
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "../../../../lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function getStats(period: "monthly" | "quarterly" | "yearly", date: Date = new Date()) {
   const supabase = await createClient();
@@ -23,7 +23,6 @@ export async function getStats(period: "monthly" | "quarterly" | "yearly", date:
       endDate = endOfYear(date);
     }
 
-    // 1. Get all sales items for this user in the period with their stored costPrice
     const salesItems = await prisma.salesItem.findMany({
       where: {
         userId: user.id,
@@ -49,7 +48,6 @@ export async function getStats(period: "monthly" | "quarterly" | "yearly", date:
     const grossProfit = totalRevenue - totalCOGS;
     const salesCount = billIds.size;
 
-    // 2. Expenses for this user in the period
     const expenses = await prisma.expense.findMany({
       where: {
         userId: user.id,
@@ -63,7 +61,6 @@ export async function getStats(period: "monthly" | "quarterly" | "yearly", date:
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     const netProfit = grossProfit - totalExpenses;
 
-    // 3. Stock value for this user (sum of stock * basePrice)
     const products = await prisma.product.findMany({
       where: { userId: user.id },
       select: { stock: true, basePrice: true },
