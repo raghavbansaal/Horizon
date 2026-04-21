@@ -1,8 +1,11 @@
 import { getParties } from "./actions";
 import { PartyList } from "./party-list";
+import { Party } from "@prisma/client";
 
 export default async function PartiesPage() {
-  const result = await getParties();
+  const result = (await getParties()) as
+    | { success: true; data: Party[] }
+    | { success: false; error: string };
 
   if (!result.success) {
     return (
