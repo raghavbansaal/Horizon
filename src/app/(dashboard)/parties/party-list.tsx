@@ -57,7 +57,7 @@ export function PartyList({ initialParties }: PartyListProps) {
       setIsAddOpen(false);
       router.refresh();
     } else {
-      alert(result.error);
+      alert((result as any).error || "Failed to add party");
     }
     setIsLoading(false);
   }
@@ -70,7 +70,7 @@ export function PartyList({ initialParties }: PartyListProps) {
       setEditingParty(null);
       router.refresh();
     } else {
-      alert(result.error);
+      alert((result as any).error || "Failed to update party");
     }
     setIsLoading(false);
   }
@@ -82,7 +82,7 @@ export function PartyList({ initialParties }: PartyListProps) {
     if (result.success) {
       router.refresh();
     } else {
-      alert(result.error);
+      alert((result as any).error || "Failed to delete party");
     }
     setIsLoading(false);
   }
