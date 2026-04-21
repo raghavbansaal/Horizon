@@ -7,22 +7,24 @@ import { getParties } from "../parties/actions";
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  const [{ data: products, error }, suppliersRes] = await Promise.all([
+  const [productsRes, partiesRes] = await Promise.all([
     getProducts(),
-    getParties("SUPPLIER"),
+    getParties(),
   ]);
 
-  const suppliers = suppliersRes.success ? suppliersRes.data || [] : [];
-
-  if (error || !products) {
+  if (!productsRes.success) {
     return (
       <div className="p-4 bg-red-50 text-red-600 rounded-md">
-        {error || "Failed to load products"}
+        {productsRes.error || "Failed to load products"}
       </div>
     );
   }
 
-  // Auto-generate next order list based on low stock (e.g. <= 10)
+  const products = productsRes.data || [];
+  const suppliers = partiesRes.success && partiesRes.data
+    ? partiesRes.data.filter((party) => party.type === "SUPPLIER")
+    : [];
+
   const lowStockProducts = products.filter((p) => p.stock <= 10);
 
   return (
