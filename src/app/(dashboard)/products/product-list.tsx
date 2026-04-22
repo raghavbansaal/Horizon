@@ -61,8 +61,16 @@ export function ProductList({ initialProducts, suppliers }: ProductListProps) {
     setIsLoading(true);
     const result = await addProduct(formData);
     if (result.success) {
+      if ((result as any).data) {
+        const added = (result as any).data as Product;
+        setProducts((prev) =>
+          [...prev, added].sort(
+            (a, b) =>
+              a.company.localeCompare(b.company) || a.name.localeCompare(b.name)
+          )
+        );
+      }
       setIsAddOpen(false);
-      router.refresh();
     } else {
       alert(result.error);
     }
@@ -74,8 +82,18 @@ export function ProductList({ initialProducts, suppliers }: ProductListProps) {
     setIsLoading(true);
     const result = await editProduct(editingProduct.id, formData);
     if (result.success) {
+      if ((result as any).data) {
+        const updated = (result as any).data as Product;
+        setProducts((prev) =>
+          prev
+            .map((p) => (p.id === updated.id ? updated : p))
+            .sort(
+              (a, b) =>
+                a.company.localeCompare(b.company) || a.name.localeCompare(b.name)
+            )
+        );
+      }
       setEditingProduct(null);
-      router.refresh();
     } else {
       alert(result.error);
     }
@@ -87,7 +105,7 @@ export function ProductList({ initialProducts, suppliers }: ProductListProps) {
     setIsLoading(true);
     const result = await deleteProduct(id);
     if (result.success) {
-      router.refresh();
+      setProducts((prev) => prev.filter((p) => p.id !== id));
     } else {
       alert(result.error);
     }

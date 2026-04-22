@@ -21,17 +21,39 @@ export async function getStats(period: "monthly" | "quarterly" | "yearly", date:
       endDate = endOfYear(date);
     }
 
-    const salesItems = await prisma.salesItem.findMany({
-      where: {
-        userId: user.id,
-        salesBill: {
+    const [salesItems, expenses, products] = await Promise.all([
+      prisma.salesItem.findMany({
+        where: {
+          userId: user.id,
+          salesBill: {
+            date: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
+        },
+        select: {
+          salesBillId: true,
+          quantity: true,
+          price: true,
+          costPrice: true,
+        },
+      }),
+      prisma.expense.findMany({
+        where: {
+          userId: user.id,
           date: {
             gte: startDate,
             lte: endDate,
           },
         },
-      },
-    });
+        select: { amount: true },
+      }),
+      prisma.product.findMany({
+        where: { userId: user.id },
+        select: { stock: true, basePrice: true },
+      }),
+    ]);
 
     let totalRevenue = 0;
     let totalCOGS = 0;
@@ -46,23 +68,8 @@ export async function getStats(period: "monthly" | "quarterly" | "yearly", date:
     const grossProfit = totalRevenue - totalCOGS;
     const salesCount = billIds.size;
 
-    const expenses = await prisma.expense.findMany({
-      where: {
-        userId: user.id,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-    });
-
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     const netProfit = grossProfit - totalExpenses;
-
-    const products = await prisma.product.findMany({
-      where: { userId: user.id },
-      select: { stock: true, basePrice: true },
-    });
     const stockValue = products.reduce((sum, p) => sum + p.stock * p.basePrice, 0);
 
     return {

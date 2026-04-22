@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { signupAction } from "./actions";
+import { motion } from "framer-motion";
 
 const initialState = {
   error: null as string | null,
@@ -14,16 +15,26 @@ const initialState = {
 export default function SignupPage() {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(signupAction, initialState);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (state.success) {
-      router.push("/login");
+      setIsRedirecting(true);
+      const timeout = setTimeout(() => {
+        router.push("/login");
+      }, 250);
+      return () => clearTimeout(timeout);
     }
   }, [state.success, router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900">
-      <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-md dark:bg-zinc-800 dark:shadow-zinc-900/50">
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.99 }}
+        animate={{ opacity: isRedirecting ? 0 : 1, y: isRedirecting ? -10 : 0, scale: isRedirecting ? 0.99 : 1 }}
+        transition={{ duration: 0.28, ease: "easeOut" }}
+        className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-md dark:bg-zinc-800 dark:shadow-zinc-900/50"
+      >
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Horizon</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Enterprise Resource Platform</p>
@@ -105,7 +116,7 @@ export default function SignupPage() {
             </Link>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

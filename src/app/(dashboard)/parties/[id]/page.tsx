@@ -26,19 +26,16 @@ export default async function PartyDetailsPage({
       notFound();
     }
 
-    // Fetch all products
-    const products = await prisma.product.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" },
-    });
-
-    // Fetch custom price list for this party
-    const priceLists = await prisma.priceList.findMany({
-      where: { partyId: id, userId: user.id },
-    });
-
-    // Fetch bills and transactions
-    const [salesBills, purchaseBills, transactions] = await Promise.all([
+    // Fetch related data in parallel
+    const [products, priceLists, salesBills, purchaseBills, transactions] = await Promise.all([
+      prisma.product.findMany({
+        where: { userId: user.id },
+        orderBy: { name: "asc" },
+      }),
+      prisma.priceList.findMany({
+        where: { partyId: id, userId: user.id },
+        select: { productId: true, price: true },
+      }),
       prisma.salesBill.findMany({
         where: { partyId: id, userId: user.id },
         orderBy: { date: "desc" },
@@ -53,13 +50,14 @@ export default async function PartyDetailsPage({
       }),
     ]);
 
-    // Map products with custom prices
+    // Map products with custom prices (O(n))
+    const priceByProductId = new Map(priceLists.map((pl) => [pl.productId, pl.price]));
     const productsWithPrices = products.map((product) => {
-      const customPrice = priceLists.find((pl) => pl.productId === product.id);
+      const customPrice = priceByProductId.get(product.id);
       return {
         ...product,
-        customPrice: customPrice ? customPrice.price : product.basePrice,
-        hasCustomPrice: !!customPrice,
+        customPrice: customPrice ?? product.basePrice,
+        hasCustomPrice: customPrice !== undefined,
       };
     });
 

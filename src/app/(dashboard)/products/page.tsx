@@ -1,15 +1,14 @@
-import { getProducts } from "./actions";
+import { getProducts, getSuppliersForProducts } from "./actions";
 import { ProductList } from "./product-list";
 import { NextOrderList } from "./next-order-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getParties } from "../parties/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  const [productsRes, partiesRes] = await Promise.all([
+  const [productsRes, suppliersRes] = await Promise.all([
     getProducts(),
-    getParties(),
+    getSuppliersForProducts(),
   ]);
 
   if (!productsRes.success) {
@@ -21,8 +20,8 @@ export default async function ProductsPage() {
   }
 
   const products = productsRes.data || [];
-  const suppliers = partiesRes.success && partiesRes.data
-    ? partiesRes.data.filter((party) => party.type === "SUPPLIER")
+  const suppliers = suppliersRes.success && suppliersRes.data
+    ? suppliersRes.data
     : [];
 
   const lowStockProducts = products.filter((p) => p.stock <= 10);

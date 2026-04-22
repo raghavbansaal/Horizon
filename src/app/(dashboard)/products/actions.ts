@@ -10,12 +10,50 @@ export async function getProducts() {
   try {
     const products = await prisma.product.findMany({
       where: { userId: user.id },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        type: true,
+        variant: true,
+        company: true,
+        stock: true,
+        cartonSize: true,
+        basePrice: true,
+        supplierId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: [{ company: "asc" }, { name: "asc" }],
     });
     return { success: true, data: products };
   } catch (error) {
     console.error("Failed to fetch products:", error);
     return { success: false, error: "Failed to fetch products" };
+  }
+}
+
+export async function getSuppliersForProducts() {
+  const user = await getAuthenticatedUser();
+
+  try {
+    const suppliers = await prisma.party.findMany({
+      where: { userId: user.id, type: "SUPPLIER" },
+      select: {
+        id: true,
+        name: true,
+        balance: true,
+        type: true,
+        userId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { name: "asc" },
+    });
+    return { success: true, data: suppliers };
+  } catch (error) {
+    console.error("Failed to fetch suppliers:", error);
+    return { success: false, error: "Failed to fetch suppliers" };
   }
 }
 
@@ -80,7 +118,7 @@ export async function addProduct(formData: FormData) {
     }
 
     revalidatePath("/products");
-    return { success: true };
+    return { success: true, data: product };
   } catch (error) {
     console.error("Failed to add product:", error);
     return { success: false, error: "Failed to add product" };
@@ -125,9 +163,12 @@ export async function editProduct(id: string, formData: FormData) {
       where: { id, userId: user.id },
       data: updateData,
     });
+    const updated = await prisma.product.findFirst({
+      where: { id, userId: user.id },
+    });
 
     revalidatePath("/products");
-    return { success: true };
+    return { success: true, data: updated };
   } catch (error) {
     console.error("Failed to update product:", error);
     return { success: false, error: "Failed to update product" };

@@ -13,6 +13,7 @@ export async function getNotifications() {
         salesBills: {
           where: { userId: user.id },
           orderBy: { date: "desc" },
+          take: 12,
           select: { date: true },
         },
       },

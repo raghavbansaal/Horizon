@@ -29,12 +29,16 @@ import { deleteSalesBill, deletePurchaseBill } from "./actions";
 
 type SalesBillWithDetails = SalesBill & {
   party: Party;
-  items: (SalesItem & { product: Product })[];
+  items: (SalesItem & {
+    product: Pick<Product, "id" | "name" | "variant" | "company" | "cartonSize">;
+  })[];
 };
 
 type PurchaseBillWithDetails = PurchaseBill & {
   party: Party;
-  items: (PurchaseItem & { product: Product })[];
+  items: (PurchaseItem & {
+    product: Pick<Product, "id" | "name" | "variant" | "company" | "cartonSize">;
+  })[];
 };
 
 interface BillingManagerProps {

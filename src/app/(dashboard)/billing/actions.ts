@@ -46,23 +46,26 @@ export async function getBills() {
       prisma.salesBill.findMany({
         where: { userId: user.id },
         include: {
-          party: true,
+          party: {
+            select: {
+              id: true,
+              userId: true,
+              name: true,
+              type: true,
+              balance: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
           items: {
             include: {
               product: {
                 select: {
                   id: true,
                   name: true,
-                  type: true,
                   variant: true,
                   company: true,
-                  stock: true,
                   cartonSize: true,
-                  basePrice: true,
-                  supplierId: true,
-                  userId: true,
-                  createdAt: true,
-                  updatedAt: true,
                 },
               },
             },
@@ -73,23 +76,26 @@ export async function getBills() {
       prisma.purchaseBill.findMany({
         where: { userId: user.id },
         include: {
-          party: true,
+          party: {
+            select: {
+              id: true,
+              userId: true,
+              name: true,
+              type: true,
+              balance: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
           items: {
             include: {
               product: {
                 select: {
                   id: true,
                   name: true,
-                  type: true,
                   variant: true,
                   company: true,
-                  stock: true,
                   cartonSize: true,
-                  basePrice: true,
-                  supplierId: true,
-                  userId: true,
-                  createdAt: true,
-                  updatedAt: true,
                 },
               },
             },

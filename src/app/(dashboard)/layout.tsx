@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Users,
   Package,
@@ -25,7 +26,7 @@ function SidebarLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   const linkBase =
-    "flex items-center px-6 py-3 text-sm transition-colors";
+    "flex items-center px-6 py-3 text-sm transition-all duration-200 active:scale-[0.99]";
 
   return (
     <>
@@ -135,6 +136,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-zinc-950 transition-colors duration-300">
@@ -151,7 +153,7 @@ export default function DashboardLayout({
         </nav>
         <div className="p-4 border-t dark:border-zinc-800">
           <form action={logout}>
-            <button className="flex w-full items-center px-4 py-2 text-gray-600 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/30 dark:hover:text-red-400 rounded-md transition-colors">
+            <button className="flex w-full items-center px-4 py-2 text-gray-600 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/30 dark:hover:text-red-400 rounded-md transition-all duration-200 active:scale-[0.98]">
               <LogOut className="w-5 h-5 mr-3" />
               Sign Out
             </button>
@@ -184,7 +186,7 @@ export default function DashboardLayout({
             </nav>
             <div className="p-4 border-t dark:border-zinc-800">
               <form action={logout}>
-                <button className="flex w-full items-center px-4 py-2 text-gray-600 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/30 dark:hover:text-red-400 rounded-md transition-colors">
+                <button className="flex w-full items-center px-4 py-2 text-gray-600 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/30 dark:hover:text-red-400 rounded-md transition-all duration-200 active:scale-[0.98]">
                   <LogOut className="w-5 h-5 mr-3" />
                   Sign Out
                 </button>
@@ -225,7 +227,17 @@ export default function DashboardLayout({
           </div>
         </header>
         <div className="flex-1 overflow-y-auto p-4 md:p-8 text-gray-900 dark:text-gray-100">
-          {children}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

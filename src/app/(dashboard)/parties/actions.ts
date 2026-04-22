@@ -30,7 +30,7 @@ export async function addParty(formData: FormData) {
     create: { id: user.id, email: user.email },
   });
 
-  await prisma.party.create({
+  const party = await prisma.party.create({
     data: { name, type, balance: initialBalance, userId: user.id },
   });
 
@@ -39,7 +39,7 @@ export async function addParty(formData: FormData) {
   revalidatePath("/billing");
   revalidatePath("/dashboard");
   revalidatePath("/");
-  return { success: true };
+  return { success: true, data: party };
 }
 
 export async function editParty(id: string, formData: FormData) {
@@ -59,13 +59,16 @@ export async function editParty(id: string, formData: FormData) {
     where: { id, userId: user.id },
     data: updateData,
   });
+  const updated = await prisma.party.findFirst({
+    where: { id, userId: user.id },
+  });
 
   revalidatePath("/parties");
   revalidatePath("/products");
   revalidatePath("/billing");
   revalidatePath("/dashboard");
   revalidatePath("/");
-  return { success: true };
+  return { success: true, data: updated };
 }
 
 export async function deleteParty(id: string) {

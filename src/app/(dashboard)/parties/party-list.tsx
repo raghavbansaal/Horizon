@@ -58,8 +58,13 @@ export function PartyList({ initialParties }: PartyListProps) {
     setIsLoading(true);
     const result = await addParty(formData);
     if (result.success) {
+      if ((result as any).data) {
+        const added = (result as any).data as Party;
+        setParties((prev) =>
+          [...prev, added].sort((a, b) => a.name.localeCompare(b.name))
+        );
+      }
       setIsAddOpen(false);
-      router.refresh();
     } else {
       alert((result as any).error || "Failed to add party");
     }
@@ -71,8 +76,15 @@ export function PartyList({ initialParties }: PartyListProps) {
     setIsLoading(true);
     const result = await editParty(editingParty.id, formData);
     if (result.success) {
+      if ((result as any).data) {
+        const updated = (result as any).data as Party;
+        setParties((prev) =>
+          prev
+            .map((p) => (p.id === updated.id ? updated : p))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+      }
       setEditingParty(null);
-      router.refresh();
     } else {
       alert((result as any).error || "Failed to update party");
     }
@@ -84,7 +96,7 @@ export function PartyList({ initialParties }: PartyListProps) {
     setIsLoading(true);
     const result = await deleteParty(id);
     if (result.success) {
-      router.refresh();
+      setParties((prev) => prev.filter((p) => p.id !== id));
     } else {
       alert((result as any).error || "Failed to delete party");
     }

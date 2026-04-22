@@ -12,43 +12,75 @@ export async function getCashFlowData() {
   try {
     const cashType = scopedCashFlowType("CASH", user.id);
     const bankType = scopedCashFlowType("BANK", user.id);
-
-    let cash = await prisma.cashFlow.findFirst({ where: { type: cashType } });
-    if (!cash) cash = await prisma.cashFlow.create({ data: { type: cashType, balance: 0 } });
-
-    let bank = await prisma.cashFlow.findFirst({ where: { type: bankType } });
-    if (!bank) bank = await prisma.cashFlow.create({ data: { type: bankType, balance: 0 } });
-
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId: user.id,
-        NOT: {
-          OR: [
-            { purpose: { startsWith: "Sales Bill #" } },
-            { purpose: { startsWith: "Purchase Bill #" } },
-            { purpose: { startsWith: "Initial " } },
-            { purpose: { startsWith: "Discrepancy Reconciliation" } },
-          ],
+    const [cash, bank, transactions, parties] = await Promise.all([
+      prisma.cashFlow.findFirst({
+        where: { type: cashType },
+        select: { id: true, type: true, balance: true, updatedAt: true },
+      }),
+      prisma.cashFlow.findFirst({
+        where: { type: bankType },
+        select: { id: true, type: true, balance: true, updatedAt: true },
+      }),
+      prisma.transaction.findMany({
+        where: {
+          userId: user.id,
+          NOT: {
+            OR: [
+              { purpose: { startsWith: "Sales Bill #" } },
+              { purpose: { startsWith: "Purchase Bill #" } },
+              { purpose: { startsWith: "Initial " } },
+              { purpose: { startsWith: "Discrepancy Reconciliation" } },
+            ],
+          },
         },
-      },
-      include: { party: true },
-      orderBy: { date: "desc" },
-    });
+        select: {
+          id: true,
+          userId: true,
+          partyId: true,
+          amount: true,
+          type: true,
+          source: true,
+          purpose: true,
+          date: true,
+          party: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              balance: true,
+              userId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+        orderBy: { date: "desc" },
+      }),
+      prisma.party.findMany({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+          type: true,
+          balance: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { name: "asc" },
+      }),
+    ]);
 
-    const parties = await prisma.party.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" },
-    });
-
-    const pendingReceivables = parties
-      .filter((p) => p.type === "CUSTOMER" && p.balance > 0)
-      .reduce((sum, p) => sum + p.balance, 0);
+    const pendingReceivables = parties.reduce(
+      (sum, p) => sum + (p.type === "CUSTOMER" && p.balance > 0 ? p.balance : 0),
+      0
+    );
 
     return {
       success: true,
       cashFlows: [
-        { ...cash, type: "CASH" },
-        { ...bank, type: "BANK" },
+        { id: cash?.id || `${cashType}-local`, type: "CASH", balance: cash?.balance || 0, updatedAt: cash?.updatedAt || new Date() },
+        { id: bank?.id || `${bankType}-local`, type: "BANK", balance: bank?.balance || 0, updatedAt: bank?.updatedAt || new Date() },
       ],
       transactions,
       parties,

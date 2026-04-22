@@ -1,13 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { cache } from "react";
 
 const authUserCache = new Map<string, { id: string; email: string }>();
 
-export async function getAuthenticatedUser() {
+const getSupabaseUser = cache(async () => {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
+  return user;
+});
+
+export async function getAuthenticatedUser() {
+  const user = await getSupabaseUser();
 
   const email = user.email;
   if (!email) throw new Error("Authenticated user email is missing");
