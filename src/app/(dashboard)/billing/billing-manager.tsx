@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Eye, Pencil, Trash2 } from "lucide-react";
@@ -53,6 +54,7 @@ export function BillingManager({
   priceLists,
   companyName,
 }: BillingManagerProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("new");
   const [previewBill, setPreviewBill] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -75,6 +77,8 @@ export function BillingManager({
         type === "SALES" ? await deleteSalesBill(id) : await deletePurchaseBill(id);
       if (!res.success) {
         alert(res.error || "Failed to delete bill");
+      } else {
+        router.refresh();
       }
     } finally {
       setIsDeleting(null);
@@ -114,6 +118,7 @@ export function BillingManager({
               : { mode: "create", type: "SALES", partyId: "", date: new Date().toISOString().split("T")[0], items: [] }
           }
           onSaved={async (bill, mode) => {
+            router.refresh();
             setPreviewBill(bill);
             setActiveTab(bill.type === "PURCHASE" ? "purchases" : "sales");
             if (mode === "edit") {

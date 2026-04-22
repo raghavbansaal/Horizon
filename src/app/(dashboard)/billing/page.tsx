@@ -1,14 +1,12 @@
 import { getBills, getBillingFormData } from "./actions";
 import { BillingManager } from "./billing-manager";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function BillingPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   const userRecord = await prisma.user.findUnique({
     where: { id: user.id },

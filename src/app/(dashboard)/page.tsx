@@ -9,28 +9,75 @@ import Link from "next/link";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+const scopedCashFlowType = (type: "CASH" | "BANK", userId: string) => `${type}__${userId}`;
 
 async function getDashboardData() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const now = new Date();
     const startMonth = startOfMonth(now);
     const endMonth = endOfMonth(now);
 
-    const salesItems = await prisma.salesItem.findMany({
-      where: {
-        userId: user.id,
-        salesBill: {
-          date: { gte: startMonth, lte: endMonth }
-        }
-      },
-    });
+    const [
+      salesItems,
+      cashFlows,
+      lowStockProducts,
+      recentTransactions,
+      topParties,
+    ] = await Promise.all([
+      prisma.salesItem.findMany({
+        where: {
+          userId: user.id,
+          salesBill: {
+            date: { gte: startMonth, lte: endMonth }
+          }
+        },
+      }),
+      prisma.cashFlow.findMany({
+        where: {
+          type: {
+            in: [scopedCashFlowType("CASH", user.id), scopedCashFlowType("BANK", user.id)],
+          },
+        },
+      }),
+      prisma.product.findMany({
+        where: { 
+          userId: user.id,
+          stock: { lte: 10 } 
+        },
+        take: 5,
+      }),
+      prisma.transaction.findMany({
+        where: { userId: user.id },
+        include: { party: true },
+        orderBy: { date: "desc" },
+        take: 5,
+      }),
+      prisma.party.findMany({
+        where: { 
+          userId: user.id,
+          type: "CUSTOMER" 
+        },
+        include: {
+          salesBills: {
+            orderBy: { date: "desc" },
+            take: 12,
+            select: { total: true, date: true },
+          },
+          _count: { select: { salesBills: true } },
+        },
+        take: 3,
+        orderBy: {
+          salesBills: {
+            _count: "desc",
+          },
+        },
+      }),
+    ]);
 
     let totalRevenue = 0;
     let totalCOGS = 0;
@@ -39,55 +86,8 @@ async function getDashboardData() {
       totalCOGS += item.costPrice * item.quantity;
     }
     const grossProfit = totalRevenue - totalCOGS;
-
-    const monthlyExpenses = await prisma.expense.aggregate({
-      _sum: { amount: true },
-      where: { 
-        userId: user.id,
-        date: { gte: startMonth, lte: endMonth } 
-      },
-    });
-    const expSum = monthlyExpenses._sum.amount || 0;
-
-    const cashFlows = await prisma.cashFlow.findMany();
-    const cashBalance = cashFlows.find((c) => c.type === "CASH")?.balance || 0;
-    const bankBalance = cashFlows.find((c) => c.type === "BANK")?.balance || 0;
-
-    const lowStockProducts = await prisma.product.findMany({
-      where: { 
-        userId: user.id,
-        stock: { lte: 10 } 
-      },
-      take: 5,
-    });
-
-    const recentTransactions = await prisma.transaction.findMany({
-      where: { userId: user.id },
-      include: { party: true },
-      orderBy: { date: "desc" },
-      take: 5,
-    });
-
-    const topParties = await prisma.party.findMany({
-      where: { 
-        userId: user.id,
-        type: "CUSTOMER" 
-      },
-      include: {
-        salesBills: {
-          orderBy: { date: "desc" },
-          take: 12,
-          select: { total: true, date: true },
-        },
-        _count: { select: { salesBills: true } },
-      },
-      take: 3,
-      orderBy: {
-        salesBills: {
-          _count: "desc",
-        },
-      },
-    });
+    const cashBalance = cashFlows.find((c) => c.type === scopedCashFlowType("CASH", user.id))?.balance || 0;
+    const bankBalance = cashFlows.find((c) => c.type === scopedCashFlowType("BANK", user.id))?.balance || 0;
 
     return {
       salesSum: totalRevenue,

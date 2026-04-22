@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { PriceListManager } from "./price-list-manager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +14,12 @@ export default async function PartyDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   try {
+    const user = await getAuthenticatedUser();
     // Await params – required in Next.js 15
     const { id } = await params;
 
     const party = await prisma.party.findUnique({
-      where: { id },
+      where: { id, userId: user.id },
     });
 
     if (!party) {
@@ -26,26 +28,27 @@ export default async function PartyDetailsPage({
 
     // Fetch all products
     const products = await prisma.product.findMany({
+      where: { userId: user.id },
       orderBy: { name: "asc" },
     });
 
     // Fetch custom price list for this party
     const priceLists = await prisma.priceList.findMany({
-      where: { partyId: id },
+      where: { partyId: id, userId: user.id },
     });
 
     // Fetch bills and transactions
     const [salesBills, purchaseBills, transactions] = await Promise.all([
       prisma.salesBill.findMany({
-        where: { partyId: id },
+        where: { partyId: id, userId: user.id },
         orderBy: { date: "desc" },
       }),
       prisma.purchaseBill.findMany({
-        where: { partyId: id },
+        where: { partyId: id, userId: user.id },
         orderBy: { date: "desc" },
       }),
       prisma.transaction.findMany({
-        where: { partyId: id },
+        where: { partyId: id, userId: user.id },
         orderBy: { date: "desc" },
       }),
     ]);

@@ -2,13 +2,16 @@
 
 import { differenceInDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function getNotifications() {
   try {
+    const user = await getAuthenticatedUser();
     const customers = await prisma.party.findMany({
-      where: { type: "CUSTOMER" },
+      where: { userId: user.id, type: "CUSTOMER" },
       include: {
         salesBills: {
+          where: { userId: user.id },
           orderBy: { date: "desc" },
           select: { date: true },
         },

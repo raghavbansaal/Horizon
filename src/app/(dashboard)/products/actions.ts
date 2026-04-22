@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function getProducts() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const products = await prisma.product.findMany({
@@ -22,9 +20,7 @@ export async function getProducts() {
 }
 
 export async function addProduct(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const name = formData.get("name") as string;
@@ -43,6 +39,17 @@ export async function addProduct(formData: FormData) {
     const basePrice = parseFloat(basePriceStr);
     const stock = parseInt(stockStr || "0", 10);
     const cartonSize = Math.max(1, parseInt(cartonSizeStr || "1", 10) || 1);
+    const normalizedSupplierId = supplierId && supplierId !== "__none" ? supplierId : null;
+
+    if (normalizedSupplierId) {
+      const supplier = await prisma.party.findFirst({
+        where: { id: normalizedSupplierId, userId: user.id, type: "SUPPLIER" },
+        select: { id: true },
+      });
+      if (!supplier) {
+        return { success: false, error: "Invalid supplier selected" };
+      }
+    }
 
     const product = await prisma.product.create({
       data: {
@@ -53,7 +60,7 @@ export async function addProduct(formData: FormData) {
         cartonSize,
         basePrice,
         stock,
-        supplierId: supplierId && supplierId !== "__none" ? supplierId : null,
+        supplierId: normalizedSupplierId,
         userId: user.id,
       },
     });
@@ -81,9 +88,7 @@ export async function addProduct(formData: FormData) {
 }
 
 export async function editProduct(id: string, formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const name = formData.get("name") as string;
@@ -103,7 +108,16 @@ export async function editProduct(id: string, formData: FormData) {
     if (cartonSizeStr) updateData.cartonSize = Math.max(1, parseInt(cartonSizeStr, 10) || 1);
     if (basePriceStr) updateData.basePrice = parseFloat(basePriceStr);
     if (stockStr) updateData.stock = parseInt(stockStr, 10);
-    if (supplierId !== null && supplierId !== "__none") {
+    if (supplierId === "__none") {
+      updateData.supplierId = null;
+    } else if (supplierId !== null && supplierId !== "") {
+      const supplier = await prisma.party.findFirst({
+        where: { id: supplierId, userId: user.id, type: "SUPPLIER" },
+        select: { id: true },
+      });
+      if (!supplier) {
+        return { success: false, error: "Invalid supplier selected" };
+      }
       updateData.supplierId = supplierId;
     }
 
@@ -121,9 +135,7 @@ export async function editProduct(id: string, formData: FormData) {
 }
 
 export async function deleteProduct(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     await prisma.priceList.deleteMany({

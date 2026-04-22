@@ -10,12 +10,14 @@ import {
   TrendingUp,
   Bell,
   DollarSign,
+  LifeBuoy,
   LogOut,
   Menu,
   X,
 } from "lucide-react";
 import { logout } from "@/app/logout/actions";
 import { ModeToggle } from "@/components/mode-toggle";
+import { UserProfileMenu } from "@/components/user-profile-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +112,18 @@ function SidebarLinks({ onNavigate }: { onNavigate?: () => void }) {
       >
         <TrendingUp className="w-5 h-5 mr-3" />
         Statistics
+      </Link>
+      <Link
+        href="/support"
+        className={`${linkBase} ${
+          pathname?.startsWith("/support")
+            ? "text-gray-900 bg-gray-100 dark:bg-zinc-800/50 dark:text-gray-50 font-medium"
+            : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-zinc-800/50 dark:hover:text-gray-100"
+        }`}
+        onClick={onNavigate}
+      >
+        <LifeBuoy className="w-5 h-5 mr-3" />
+        Support
       </Link>
     </>
   );
@@ -207,9 +221,7 @@ export default function DashboardLayout({
               <Bell className="w-5 h-5 md:w-6 md:h-6" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </Link>
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
-              A
-            </div>
+            <UserProfileMenu />
           </div>
         </header>
         <div className="flex-1 overflow-y-auto p-4 md:p-8 text-gray-900 dark:text-gray-100">

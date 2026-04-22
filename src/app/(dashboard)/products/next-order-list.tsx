@@ -36,11 +36,10 @@ export function NextOrderList({
   suppliers,
   allProducts,
 }: NextOrderListProps) {
-  // Add a default order quantity (e.g. 50 minus current stock)
   const [items, setItems] = useState(() =>
     initialItems.map((item) => ({
       ...item,
-      orderQty: Math.max(0, 50 - item.stock), // Default target stock of 50
+      orderQty: Math.max(0, 50 - item.stock), 
       orderPrice: item.basePrice ?? 0,
     }))
   );
@@ -239,7 +238,6 @@ export function NextOrderList({
       date
     );
 
-    // Show final bill preview then refresh so stock and next order list update
     setPreviewBill({ ...result.bill, type: "PURCHASE" });
     router.refresh();
   }
@@ -319,7 +317,6 @@ export function NextOrderList({
         <div ref={billRef} className="p-6 space-y-6">
           <div className="flex justify-between items-start border-b pb-4 mb-4">
             <div>
-              <h4 className="text-base font-semibold">DevDhan</h4>
               <p className="text-xs text-muted-foreground">Next Order Sheet</p>
             </div>
             <div className="text-right text-sm text-muted-foreground">

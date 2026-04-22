@@ -2,12 +2,10 @@
 
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function getStats(period: "monthly" | "quarterly" | "yearly", date: Date = new Date()) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     let startDate: Date, endDate: Date;

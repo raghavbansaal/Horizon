@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product, Party } from "@prisma/client";
 import { Plus, Edit, Trash2, Search, PackageOpen } from "lucide-react";
@@ -43,6 +43,10 @@ export function ProductList({ initialProducts, suppliers }: ProductListProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setProducts(initialProducts);
+  }, [initialProducts]);
 
   const filteredProducts = products.filter((p) => {
     const matchesSearch = 
@@ -135,22 +139,17 @@ export function ProductList({ initialProducts, suppliers }: ProductListProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Supplier</label>
-                  <Select name="supplierId" required>
+                  <Select name="supplierId">
                     <SelectTrigger>
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
                     <SelectContent>
-                      {suppliers.length === 0 ? (
-                        <SelectItem value="__none" disabled>
-                          No suppliers found
+                      <SelectItem value="__none">No supplier</SelectItem>
+                      {suppliers.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
                         </SelectItem>
-                      ) : (
-                        suppliers.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))
-                      )}
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -337,23 +336,18 @@ export function ProductList({ initialProducts, suppliers }: ProductListProps) {
                   <label className="text-sm font-medium">Supplier</label>
                   <Select
                     name="supplierId"
-                    defaultValue={editingProduct.supplierId || undefined}
+                    defaultValue={editingProduct.supplierId || "__none"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
                     <SelectContent>
-                      {suppliers.length === 0 ? (
-                        <SelectItem value="__none" disabled>
-                          No suppliers found
+                      <SelectItem value="__none">No supplier</SelectItem>
+                      {suppliers.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
                         </SelectItem>
-                      ) : (
-                        suppliers.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))
-                      )}
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

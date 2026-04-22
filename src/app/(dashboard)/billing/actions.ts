@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentAverageCost } from "@/lib/cost";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 async function withRetry<T>(
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -30,29 +30,74 @@ async function withRetry<T>(
   throw lastError;
 }
 
+function aggregateItemsByProduct(items: { productId: string; quantity: number }[]) {
+  const byProduct = new Map<string, number>();
+  for (const item of items) {
+    byProduct.set(item.productId, (byProduct.get(item.productId) || 0) + item.quantity);
+  }
+  return [...byProduct.entries()].map(([productId, quantity]) => ({ productId, quantity }));
+}
+
 export async function getBills() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
-    const salesBills = await prisma.salesBill.findMany({
-      where: { userId: user.id },
-      include: {
-        party: true,
-        items: { include: { product: true } },
-      },
-      orderBy: { date: "desc" },
-    });
-
-    const purchaseBills = await prisma.purchaseBill.findMany({
-      where: { userId: user.id },
-      include: {
-        party: true,
-        items: { include: { product: true } },
-      },
-      orderBy: { date: "desc" },
-    });
+    const [salesBills, purchaseBills] = await Promise.all([
+      prisma.salesBill.findMany({
+        where: { userId: user.id },
+        include: {
+          party: true,
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  variant: true,
+                  company: true,
+                  stock: true,
+                  cartonSize: true,
+                  basePrice: true,
+                  supplierId: true,
+                  userId: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { date: "desc" },
+      }),
+      prisma.purchaseBill.findMany({
+        where: { userId: user.id },
+        include: {
+          party: true,
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  variant: true,
+                  company: true,
+                  stock: true,
+                  cartonSize: true,
+                  basePrice: true,
+                  supplierId: true,
+                  userId: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { date: "desc" },
+      }),
+    ]);
 
     return { success: true, salesBills, purchaseBills };
   } catch (error) {
@@ -62,22 +107,22 @@ export async function getBills() {
 }
 
 export async function getBillingFormData() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
-    const parties = await prisma.party.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" }
-    });
-    const products = await prisma.product.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" }
-    });
-    const priceLists = await prisma.priceList.findMany({
-      where: { userId: user.id }
-    });
+    const [parties, products, priceLists] = await Promise.all([
+      prisma.party.findMany({
+        where: { userId: user.id },
+        orderBy: { name: "asc" },
+      }),
+      prisma.product.findMany({
+        where: { userId: user.id },
+        orderBy: { name: "asc" },
+      }),
+      prisma.priceList.findMany({
+        where: { userId: user.id },
+      }),
+    ]);
 
     return { success: true, parties, products, priceLists };
   } catch (error) {
@@ -93,9 +138,7 @@ export async function createSalesBill(
   discount: number,
   date?: Date
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const total = subtotal - discount;
@@ -135,12 +178,15 @@ export async function createSalesBill(
         data: { balance: { increment: total } },
       });
 
-      for (const item of items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
+      const grouped = aggregateItemsByProduct(items);
+      await Promise.all(
+        grouped.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { decrement: item.quantity } },
+          })
+        )
+      );
 
       await tx.transaction.create({
         data: {
@@ -174,9 +220,7 @@ export async function updateSalesBill(
   discount: number,
   date?: Date
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const total = subtotal - discount;
@@ -191,12 +235,15 @@ export async function updateSalesBill(
         where: { id: oldBill.partyId, userId: user.id },
         data: { balance: { decrement: oldBill.total } },
       });
-      for (const item of oldBill.items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { increment: item.quantity } },
-        });
-      }
+      const groupedOld = aggregateItemsByProduct(oldBill.items);
+      await Promise.all(
+        groupedOld.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { increment: item.quantity } },
+          })
+        )
+      );
       await tx.transaction.create({
         data: {
           partyId: oldBill.partyId,
@@ -243,12 +290,15 @@ export async function updateSalesBill(
         where: { id: partyId, userId: user.id },
         data: { balance: { increment: total } },
       });
-      for (const item of items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
+      const groupedNew = aggregateItemsByProduct(items);
+      await Promise.all(
+        groupedNew.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { decrement: item.quantity } },
+          })
+        )
+      );
       await tx.transaction.create({
         data: {
           partyId,
@@ -279,9 +329,7 @@ export async function createPurchaseBill(
   total: number,
   date?: Date
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const bill = await withRetry(async (tx) => {
@@ -308,12 +356,15 @@ export async function createPurchaseBill(
         data: { balance: { decrement: total } },
       });
 
-      for (const item of items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { increment: item.quantity } },
-        });
-      }
+      const grouped = aggregateItemsByProduct(items);
+      await Promise.all(
+        grouped.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { increment: item.quantity } },
+          })
+        )
+      );
 
       await tx.transaction.create({
         data: {
@@ -346,9 +397,7 @@ export async function updatePurchaseBill(
   total: number,
   date?: Date
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const result = await withRetry(async (tx) => {
@@ -362,12 +411,15 @@ export async function updatePurchaseBill(
         where: { id: oldBill.partyId, userId: user.id },
         data: { balance: { increment: oldBill.total } },
       });
-      for (const item of oldBill.items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
+      const groupedOld = aggregateItemsByProduct(oldBill.items);
+      await Promise.all(
+        groupedOld.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { decrement: item.quantity } },
+          })
+        )
+      );
       await tx.transaction.create({
         data: {
           partyId: oldBill.partyId,
@@ -402,12 +454,15 @@ export async function updatePurchaseBill(
         where: { id: partyId, userId: user.id },
         data: { balance: { decrement: total } },
       });
-      for (const item of items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { increment: item.quantity } },
-        });
-      }
+      const groupedNew = aggregateItemsByProduct(items);
+      await Promise.all(
+        groupedNew.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { increment: item.quantity } },
+          })
+        )
+      );
       await tx.transaction.create({
         data: {
           partyId,
@@ -433,9 +488,7 @@ export async function updatePurchaseBill(
 }
 
 export async function deleteSalesBill(billId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     await withRetry(async (tx) => {
@@ -449,12 +502,15 @@ export async function deleteSalesBill(billId: string) {
         where: { id: bill.partyId, userId: user.id },
         data: { balance: { decrement: bill.total } },
       });
-      for (const item of bill.items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { increment: item.quantity } },
-        });
-      }
+      const grouped = aggregateItemsByProduct(bill.items);
+      await Promise.all(
+        grouped.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { increment: item.quantity } },
+          })
+        )
+      );
       await tx.transaction.create({
         data: {
           partyId: bill.partyId,
@@ -480,9 +536,7 @@ export async function deleteSalesBill(billId: string) {
 }
 
 export async function deletePurchaseBill(billId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     await withRetry(async (tx) => {
@@ -496,12 +550,15 @@ export async function deletePurchaseBill(billId: string) {
         where: { id: bill.partyId, userId: user.id },
         data: { balance: { increment: bill.total } },
       });
-      for (const item of bill.items) {
-        await tx.product.updateMany({
-          where: { id: item.productId, userId: user.id },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
+      const grouped = aggregateItemsByProduct(bill.items);
+      await Promise.all(
+        grouped.map((item) =>
+          tx.product.updateMany({
+            where: { id: item.productId, userId: user.id },
+            data: { stock: { decrement: item.quantity } },
+          })
+        )
+      );
       await tx.transaction.create({
         data: {
           partyId: bill.partyId,

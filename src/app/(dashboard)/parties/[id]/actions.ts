@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function updatePriceList(partyId: string, productId: string, price: number) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     await prisma.priceList.upsert({
@@ -35,9 +33,7 @@ export async function updatePriceList(partyId: string, productId: string, price:
 }
 
 export async function resetPriceList(partyId: string, productId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     await prisma.priceList.deleteMany({

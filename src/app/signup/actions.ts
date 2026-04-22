@@ -18,6 +18,11 @@ export async function signupAction(prevState: any, formData: FormData) {
   const { error, data } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        companyName,
+      },
+    },
   });
 
   if (error) {
@@ -25,11 +30,16 @@ export async function signupAction(prevState: any, formData: FormData) {
   }
 
   if (data.user) {
-    await prisma.user.upsert({
-      where: { email },
-      update: { companyName },
-      create: { id: data.user.id, email, companyName },
-    });
+    try {
+      await prisma.user.upsert({
+        where: { email },
+        update: { companyName },
+        create: { id: data.user.id, email, companyName },
+      });
+    } catch (dbError) {
+      // Do not block signup flow when DB is temporarily unavailable.
+      console.error("Signup DB sync failed:", dbError);
+    }
   }
 
   return { error: null, success: true };

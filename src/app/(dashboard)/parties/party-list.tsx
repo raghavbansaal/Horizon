@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Party } from "@prisma/client";
 import Link from "next/link";
@@ -43,6 +43,10 @@ export function PartyList({ initialParties }: PartyListProps) {
   const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setParties(initialParties);
+  }, [initialParties]);
 
   const filteredParties = parties.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());

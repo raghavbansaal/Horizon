@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { startOfMonth, endOfMonth } from "date-fns";
+import { getAuthenticatedUser } from "@/lib/auth";
+
+const scopedCashFlowType = (type: "CASH" | "BANK", userId: string) => `${type}__${userId}`;
 
 export async function getExpenses(year?: number, month?: number) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     let where: any = { userId: user.id };
@@ -29,9 +29,7 @@ export async function getExpenses(year?: number, month?: number) {
 }
 
 export async function addExpense(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     const name = formData.get("name") as string;
@@ -58,7 +56,7 @@ export async function addExpense(formData: FormData) {
       });
 
       if (paymentSource === "CASH" || paymentSource === "BANK") {
-        let cf = await tx.cashFlow.findFirst({ where: { type: paymentSource } });
+        let cf = await tx.cashFlow.findFirst({ where: { type: scopedCashFlowType(paymentSource, user.id) } });
         if (cf) {
           await tx.cashFlow.update({
             where: { id: cf.id },
@@ -66,7 +64,7 @@ export async function addExpense(formData: FormData) {
           });
         } else {
           await tx.cashFlow.create({
-            data: { type: paymentSource, balance: -amount }
+            data: { type: scopedCashFlowType(paymentSource, user.id), balance: -amount }
           });
         }
       }
@@ -84,9 +82,7 @@ export async function addExpense(formData: FormData) {
 }
 
 export async function deleteExpense(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await getAuthenticatedUser();
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -94,7 +90,7 @@ export async function deleteExpense(id: string) {
       if (!expense) return;
 
       if (expense.source === "CASH" || expense.source === "BANK") {
-        const cf = await tx.cashFlow.findFirst({ where: { type: expense.source } });
+        const cf = await tx.cashFlow.findFirst({ where: { type: scopedCashFlowType(expense.source, user.id) } });
         if (cf) {
           await tx.cashFlow.update({
             where: { id: cf.id },
