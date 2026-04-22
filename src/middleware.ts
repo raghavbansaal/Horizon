@@ -1,13 +1,26 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const protectedRoutes = ["/", "/parties", "/products", "/billing", "/cashflow", "/notifications", "/settings"];
 const publicRoutes = ["/login", "/signup", "/forgot-password"];
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  const pathname = request.nextUrl.pathname;
+
+  // Skip middleware for internal/static-like paths.
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.includes(".")
+  ) {
+    return NextResponse.next({ request });
+  }
+
+  // Fail-safe in case env vars are missing on deployment.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.next({ request });
+  }
+
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,25 +47,23 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const path = request.nextUrl.pathname
-  const isProtectedRoute = protectedRoutes.some((route) => 
-    path === route || path.startsWith(`${route}/`)
-  )
-  const isPublicRoute = publicRoutes.includes(path)
+  const isPublicRoute = publicRoutes.includes(pathname);
+  const isProtectedRoute = !isPublicRoute;
 
   if (isProtectedRoute && !user) {
-    const redirectUrl = new URL('/login', request.url)
-    return NextResponse.redirect(redirectUrl)
+    const redirectUrl = new URL('/login', request.url);
+    redirectUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(redirectUrl);
   }
 
-  if (isPublicRoute && user && path !== '/') {
-    const redirectUrl = new URL('/', request.url)
-    return NextResponse.redirect(redirectUrl)
+  if (isPublicRoute && user && pathname !== '/') {
+    const redirectUrl = new URL('/', request.url);
+    return NextResponse.redirect(redirectUrl);
   }
 
-  return supabaseResponse
+  return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|.*\\.png$).*)"],
-}
+  matcher: ["/:path*"],
+};
